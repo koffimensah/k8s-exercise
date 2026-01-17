@@ -1,0 +1,137 @@
+# deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: petclinic-deployment
+  namespace: default
+  labels:
+    app: petclinic
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: petclinic
+  template:
+    metadata:
+      labels:
+        app: petclinic
+    spec:
+      containers:
+      - name: petclinic
+        image: koffimensah/petclinic:v1.0
+        ports:
+        - containerPort: 8080
+          name: http
+        
+        # Environment variables from ConfigMap
+        env:
+        - name: APP_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: APP_ENV
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: LOG_LEVEL
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: PORT
+        - name: DATABASE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: DATABASE_HOST
+        
+        # Environment variables from Secret
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secret
+              key: DATABASE_PASSWORD
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secret
+              key: API_KEY
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: app-secret
+              key: JWT_SECRET
+        
+        # Resource limits
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+
+# configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: default
+data:
+  # Non-sensitive configuration
+  APP_ENV: "production"
+  LOG_LEVEL: "info"
+  PORT: "8080"
+  DATABASE_HOST: "db-service"
+  DATABASE_PORT: "5432"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+
+---
+# secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secret
+  namespace: default
+type: Opaque
+data:
+  # Sensitive data - base64 encoded
+  # To encode: echo -n 'your-value' | base64
+  DATABASE_PASSWORD: cGFzc3dvcmQxMjM=  # password123
+  API_KEY: bXktc2VjcmV0LWFwaS1rZXk=      # my-secret-api-key
+  JWT_SECRET: and0LXNlY3JldC10b2tlbi0xMjM=  # jwt-secret-token-123
+
+---
+
+# service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: petclinic-service
+  namespace: default
+spec:
+  type: LoadBalancer  # Use LoadBalancer for Docker Desktop
+  selector:
+    app: petclinic
+  ports:
+  - protocol: TCP
+    port: 80          # External port
+    targetPort: 8080  # Container port
+    name: http
