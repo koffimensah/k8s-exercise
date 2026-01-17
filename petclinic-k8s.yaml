@@ -1,3 +1,35 @@
+# configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: default
+data:
+  # Non-sensitive configuration
+  APP_ENV: "production"
+  LOG_LEVEL: "info"
+  PORT: "8080"
+  DATABASE_HOST: "db-service"
+  DATABASE_PORT: "5432"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+
+---
+# secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secret
+  namespace: default
+type: Opaque
+data:
+  # Sensitive data - base64 encoded
+  # To encode: echo -n 'your-value' | base64
+  DATABASE_PASSWORD: cGFzc3dvcmQxMjM=  # password123
+  API_KEY: bXktc2VjcmV0LWFwaS1rZXk=      # my-secret-api-key
+  JWT_SECRET: and0LXNlY3JldC10b2tlbi0xMjM=  # jwt-secret-token-123
+
+---
 # deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -63,63 +95,16 @@ spec:
               name: app-secret
               key: JWT_SECRET
         
-        # Resource limits
+        # Resource limits - increased for Java app
         resources:
           requests:
-            memory: "128Mi"
-            cpu: "100m"
+            memory: "512Mi"
+            cpu: "250m"
           limits:
-            memory: "256Mi"
-            cpu: "200m"
-        
-        # Health checks
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8080
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 8080
-          initialDelaySeconds: 5
-          periodSeconds: 5
----
-
-# configmap.yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: app-config
-  namespace: default
-data:
-  # Non-sensitive configuration
-  APP_ENV: "production"
-  LOG_LEVEL: "info"
-  PORT: "8080"
-  DATABASE_HOST: "db-service"
-  DATABASE_PORT: "5432"
-  REDIS_HOST: "redis-service"
-  REDIS_PORT: "6379"
+            memory: "1Gi"
+            cpu: "500m"
 
 ---
-# secret.yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: app-secret
-  namespace: default
-type: Opaque
-data:
-  # Sensitive data - base64 encoded
-  # To encode: echo -n 'your-value' | base64
-  DATABASE_PASSWORD: cGFzc3dvcmQxMjM=  # password123
-  API_KEY: bXktc2VjcmV0LWFwaS1rZXk=      # my-secret-api-key
-  JWT_SECRET: and0LXNlY3JldC10b2tlbi0xMjM=  # jwt-secret-token-123
-
----
-
 # service.yaml
 apiVersion: v1
 kind: Service
@@ -133,5 +118,5 @@ spec:
   ports:
   - protocol: TCP
     port: 80          # External port
-    targetPort: 8080  # Container port
+    targetPort: 8082  # Container port
     name: http
