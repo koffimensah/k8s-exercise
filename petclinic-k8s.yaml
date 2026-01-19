@@ -103,6 +103,22 @@ spec:
           limits:
             memory: "1Gi"
             cpu: "500m"
+        
+        # Health checks - with long delays for Maven build
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 300  # 5 minutes for Maven build
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 240  # 4 minutes
+          periodSeconds: 5
+          failureThreshold: 3
 
 ---
 # service.yaml
@@ -117,6 +133,6 @@ spec:
     app: petclinic
   ports:
   - protocol: TCP
-    port: 80          # External port
-    targetPort: 8082  # Container port
+    port: 8085         # External port
+    targetPort: 8080  # Container port
     name: http
